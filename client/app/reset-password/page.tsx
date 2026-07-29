@@ -1,15 +1,29 @@
 // ============================================================
-// RESET PASSWORD PAGE - Set new password
+// RESET PASSWORD PAGE - With Suspense Boundary Fix
 // ============================================================
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 
+// ============================================================
+// MAIN COMPONENT WITH SUSPENSE
+// ============================================================
 export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <ResetPasswordContent />
+        </Suspense>
+    );
+}
+
+// ============================================================
+// RESET PASSWORD CONTENT - uses useSearchParams
+// ============================================================
+function ResetPasswordContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams.get('token');
@@ -21,7 +35,7 @@ export default function ResetPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [tokenValid, setTokenValid] = useState<boolean | null>(null);
 
-    // Verify token on page load
+    // Verify token when page loads
     useEffect(() => {
         if (!token) {
             setTokenValid(false);
@@ -60,6 +74,7 @@ export default function ResetPasswordPage() {
         try {
             const res = await api.post('/auth/reset-password', { token, newPassword });
             setMessage(res.data.message);
+            
             setTimeout(() => {
                 router.push('/login');
             }, 3000);
@@ -70,7 +85,7 @@ export default function ResetPasswordPage() {
         }
     };
 
-    // Invalid token state
+    // Invalid Token State
     if (tokenValid === false) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 p-4">
@@ -89,7 +104,7 @@ export default function ResetPasswordPage() {
         );
     }
 
-    // Loading state while verifying token
+    // Loading State
     if (tokenValid === null) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -98,6 +113,7 @@ export default function ResetPasswordPage() {
         );
     }
 
+    // Main Form
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 p-4">
             <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
