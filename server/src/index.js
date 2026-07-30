@@ -56,8 +56,8 @@ const searchRoutes = require('./routes/search');
 app.use('/api/search', searchRoutes);
 
 // Image Upload routes (optional)
-const uploadRoutes = require('./routes/upload');
-app.use('/api/upload', uploadRoutes);
+//const uploadRoutes = require('./routes/upload');
+//app.use('/api/upload', uploadRoutes);
 
 // ============================================
 // TEST ROUTE
