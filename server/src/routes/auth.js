@@ -239,4 +239,150 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
+// ============================================================
+// EMAIL VERIFICATION SYSTEM
+// ============================================================
+
+// Store verification tokens temporarily (Use Redis/Database in production)
+const verificationTokens = new Map();
+
+// ============================================================
+// REGISTER WITH EMAIL VERIFICATION
+// ============================================================
+router.post('/register', async (req, res) => {
+    try {
+        const { name, username, email, password } = req.body;
+        console.log('📝 Register attempt:', { name, username, email });
+
+        // Check if user already exists
+        const existingUser = await pool.query(
+            'SELECT * FROM users WHERE email = $1 OR username = $2',
+            [email, username]
+        );
+
+        if (existingUser.rows.length > 0) {
+            return res.status(400).json({ error: 'User already exists' });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insert user with is_verified = false
+        const result = await pool.query(
+            `INSERT INTO users (name, username, email, password, is_verified) 
+             VALUES ($1, $2, $3, $4, false) 
+             RETURNING id, name, username, email, bio, profile_picture, role, created_at, is_verified`,
+            [name, username, email, hashedPassword]
+        );
+
+        const user = result.rows[0];
+
+        // Generate verification token
+        const verifyToken = jwt.sign(
+            { userId: user.id, purpose: 'email-verification' },
+            process.env.JWT_SECRET || 'my_super_secret_key_12345',
+            { expiresIn: '24h' } // Token expires in 24 hours
+        );
+
+        // Store token with timestamp
+        verificationTokens.set(user.id, {
+            token: verifyToken,
+            createdAt: Date.now()
+        });
+
+        // In production, send email with verification link
+        // For development, log the verification link
+        const verifyLink = `http://localhost:3000/verify-email?token=${verifyToken}`;
+        console.log('📧 Verification link:', verifyLink);
+
+        // Generate JWT token for auto-login
+        const authToken = jwt.sign(
+            { userId: user.id },
+            process.env.JWT_SECRET || 'my_super_secret_key_12345',
+            { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+        );
+
+        console.log('✅ User registered:', user.email);
+        res.status(201).json({ 
+            user, 
+            token: authToken,
+            requiresVerification: true,
+            message: 'Please verify your email'
+        });
+
+    } catch (error) {
+        console.error('❌ Register error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================================
+// VERIFY EMAIL
+// ============================================================
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.body;
+        console.log('📧 Verifying email...');
+
+        // Verify JWT token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'my_super_secret_key_12345');
+        
+        // Check token purpose
+        if (decoded.purpose !== 'email-verification') {
+            return res.status(400).json({ error: 'Invalid token' });
+        }
+
+        // Check if token exists in storage
+        const storedToken = verificationTokens.get(decoded.userId);
+        if (!storedToken || storedToken.token !== token) {
+            return res.status(400).json({ error: 'Invalid or expired token' });
+        }
+
+        // Update user's verification status
+        await pool.query(
+            'UPDATE users SET is_verified = true WHERE id = $1',
+            [decoded.userId]
+        );
+
+        // Remove used token
+        verificationTokens.delete(decoded.userId);
+
+        console.log('✅ Email verified for user:', decoded.userId);
+        res.json({ message: 'Email verified successfully' });
+
+    } catch (error) {
+        console.error('❌ Verify email error:', error);
+        res.status(400).json({ error: 'Invalid or expired token' });
+    }
+});
+
+// ============================================================
+// CHECK VERIFICATION STATUS
+// ============================================================
+router.get('/verification-status', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'my_super_secret_key_12345');
+        
+        const result = await pool.query(
+            'SELECT is_verified FROM users WHERE id = $1',
+            [decoded.userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ isVerified: result.rows[0].is_verified });
+
+    } catch (error) {
+        console.error('❌ Verification status error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = router;

@@ -54,6 +54,38 @@ export default function RegisterPage() {
                     </div>
                 )}
 
+const [verificationSent, setVerificationSent] = useState(false);
+
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+        const res = await api.post('/auth/register', formData);
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        
+        if (res.data.requiresVerification) {
+            setVerificationSent(true);
+        } else {
+            window.location.href = '/';
+        }
+    } catch (err: any) {
+        setError(err.response?.data?.error || 'Registration failed');
+        setLoading(false);
+    }
+};
+
+// Add this after the form:
+{verificationSent && (
+    <div className="bg-green-50 text-green-600 p-4 rounded-lg mb-4">
+        <p className="font-semibold">✅ Registration successful!</p>
+        <p className="text-sm mt-1">Please check your email for verification link.</p>
+        <p className="text-xs text-gray-500 mt-2">(For testing, check server console for the link)</p>
+    </div>
+)}
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
