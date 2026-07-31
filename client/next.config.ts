@@ -5,12 +5,22 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    domains: ['localhost', 'vercel.app', 'supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co', // Supabase থেকে ছবি অনুমোদিত
+      },
+      {
+        protocol: 'https',
+        hostname: '*.vercel.app', // Vercel থেকে ছবি অনুমোদিত
+      },
+      {
+        protocol: 'https',
+        hostname: '*.railway.app', // Railway থেকে ছবি অনুমোদিত
+      },
+    ],
   },
   output: 'standalone',
-  turbopack: {
-    root: process.cwd(),
-  },
 };
 
 export default nextConfig;
