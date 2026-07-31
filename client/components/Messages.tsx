@@ -38,15 +38,21 @@ export default function Messages() {
     const [unreadCount, setUnreadCount] = useState(0);
 
     const fetchConversations = async () => {
-        try {
-            const res = await api.get('/messages/conversations');
-            setConversations(res.data);
-        } catch (error) {
-            console.error('Error fetching conversations:', error);
-        } finally {
-            setLoading(false);
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await api.get('/messages/conversations');
+        setConversations(res.data);
+    } catch (error: any) {
+        if (error.response?.status === 401) {
+            localStorage.clear();
+            window.location.href = '/login';
         }
-    };
+        console.error('Error fetching conversations:', error);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const fetchMessages = async (userId: string) => {
         try {
@@ -58,13 +64,19 @@ export default function Messages() {
     };
 
     const fetchUnreadCount = async () => {
-        try {
-            const res = await api.get('/messages/unread/count');
-            setUnreadCount(res.data.count);
-        } catch (error) {
-            console.error('Error fetching unread count:', error);
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await api.get('/messages/unread/count');
+        setUnreadCount(res.data.count);
+    } catch (error: any) {
+        if (error.response?.status === 401) {
+            localStorage.clear();
+            window.location.href = '/login';
         }
-    };
+        console.error('Error fetching unread count:', error);
+    }
+};
 
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();

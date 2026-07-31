@@ -24,24 +24,40 @@ export default function Notifications() {
     const [showDropdown, setShowDropdown] = useState(false);
 
     const fetchNotifications = async () => {
-        try {
-            const res = await api.get('/notifications');
-            setNotifications(res.data);
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
-        } finally {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
             setLoading(false);
+            return; // Skip if no token
         }
-    };
+        const res = await api.get('/notifications');
+        setNotifications(res.data);
+    } catch (error: any) {
+        if (error.response?.status === 401) {
+            // Token expired or invalid, redirect to login
+            localStorage.clear();
+            window.location.href = '/login';
+        }
+        console.error('Error fetching notifications:', error);
+    } finally {
+        setLoading(false);
+    }
+};
 
     const fetchUnreadCount = async () => {
-        try {
-            const res = await api.get('/notifications/unread-count');
-            setUnreadCount(res.data.count);
-        } catch (error) {
-            console.error('Error fetching unread count:', error);
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return; // Skip if no token
+        const res = await api.get('/notifications/unread-count');
+        setUnreadCount(res.data.count);
+    } catch (error: any) {
+        if (error.response?.status === 401) {
+            localStorage.clear();
+            window.location.href = '/login';
         }
-    };
+        console.error('Error fetching unread count:', error);
+    }
+};
 
     const markAsRead = async (id: string) => {
         try {
